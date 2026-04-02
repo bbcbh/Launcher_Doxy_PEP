@@ -185,7 +185,7 @@ public class Runnable_ClusterModel_Prophylaxis extends Abstract_Runnable_Cluster
 	}
 
 	@Override
-	protected void testPerson(int currentTime, int pid, int infIncl, int siteIncl, int[][] cumul_treatment_by_person) {
+	public void testPerson(int currentTime, int pid, int infIncl, int siteIncl, int[][] cumul_treatment_by_person) {
 		super.testPerson(currentTime, pid, infIncl, siteIncl, cumul_treatment_by_person);
 
 		// Doxy-PEP allocation by test
