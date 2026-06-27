@@ -1,5 +1,6 @@
 package sim;
 
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -451,6 +452,10 @@ public class Runnable_ClusterModel_Prophylaxis extends Abstract_Runnable_Cluster
 				& 1 << Abstract_Runnable_ClusterModel_MultiTransmission_Prophylaxis.SIM_SETTING_KEY_GEN_PEP_USGAGE_RECORD) != 0) {
 			if (!pep_usage_record.isEmpty()) {
 				fileName = String.format(filePrefix + "PEP_Usage_Record_%d_%d.csv", cMAP_SEED, sIM_SEED);
+				if (this.getSim_prop().containsKey(PROP_SEED_FILE_PATH)) {
+					File seedFileDir = new File((String) this.getSim_prop().get(PROP_SEED_FILE_PATH)).getParentFile();
+					fileName = String.format("%s%s%s", seedFileDir.getName(), File.separator, fileName);
+				}
 				try {
 					PrintWriter pWri = new PrintWriter(new java.io.File(baseDir, fileName));
 					pWri.println("PID,TIME_PEP_TAKEN");
@@ -537,6 +542,12 @@ public class Runnable_ClusterModel_Prophylaxis extends Abstract_Runnable_Cluster
 			fileName = String.format(
 					filePrefix + "Infected_All_Stages_" + Simulation_ClusterModelTransmission.FILENAME_PREVALENCE_SITE,
 					cMAP_SEED, sIM_SEED);
+			
+			if (this.getSim_prop().containsKey(PROP_SEED_FILE_PATH)) {
+				File seedFileDir = new File((String) this.getSim_prop().get(PROP_SEED_FILE_PATH)).getParentFile();
+				fileName = String.format("%s%s%s", seedFileDir.getName(), File.separator, fileName);
+			}
+			
 			try {
 				PrintWriter pWri = new PrintWriter(new FileWriter(new java.io.File(baseDir, fileName)));
 				Integer[] timeArr = infected_site_stage_count.keySet().toArray(new Integer[0]);
