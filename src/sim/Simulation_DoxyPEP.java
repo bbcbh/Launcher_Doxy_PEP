@@ -53,14 +53,32 @@ public class Simulation_DoxyPEP extends Simulation_ClusterModelTransmission {
 	public Abstract_Runnable_ClusterModel_Transmission generateDefaultRunnable(long cMap_seed, long sim_seed,
 			Properties loadProperties) {
 
+		final int NUM_COMPETE_RESULT = 7;
+		File resDir = baseDir;
 		// Set output path to be same as seed file
 		if (seedMapFile != null) {
 			loadProperties.put(Runnable_ClusterModel_MultiTransmission.PROP_SEED_FILE_PATH,
 					seedMapFile.getAbsolutePath());
+
+			resDir = seedMapFile.getParentFile();
 		}
 
-		return new Runnable_ClusterModel_Prophylaxis(cMap_seed, sim_seed, baseContactMapMapping.get(cMap_seed),
-				loadedProperties);
+		// Check if results already generated
+		Pattern pattern_indiv_result = Pattern.compile(String.format(".*_%d_%d.csv", cMap_seed, sim_seed));
+		File[] res_test = resDir.listFiles(new FileFilter() {
+			@Override
+			public boolean accept(File pathname) {
+				return pathname.isFile() && pattern_indiv_result.matcher(pathname.getName()).matches();
+			}
+		});
+
+		if (res_test.length >= NUM_COMPETE_RESULT) {
+			// Already have result			
+			return null;
+		} else {
+			return new Runnable_ClusterModel_Prophylaxis(cMap_seed, sim_seed, baseContactMapMapping.get(cMap_seed),
+					loadedProperties);
+		}
 	}
 
 	@Override
