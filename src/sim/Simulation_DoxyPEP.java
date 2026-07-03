@@ -73,7 +73,10 @@ public class Simulation_DoxyPEP extends Simulation_ClusterModelTransmission {
 		});
 
 		if (res_test.length >= NUM_COMPETE_RESULT) {
-			// Already have result			
+			// Already have result	
+			System.out.printf("%d results for CMAP=%d SIM_SEED=%d already exists. Simulations skipped.\n",
+					res_test.length, cMap_seed, sim_seed);
+					
 			return null;
 		} else {
 			return new Runnable_ClusterModel_Prophylaxis(cMap_seed, sim_seed, baseContactMapMapping.get(cMap_seed),
