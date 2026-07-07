@@ -151,51 +151,6 @@ public class Simulation_DoxyPEP extends Simulation_ClusterModelTransmission {
 		} catch (Exception e) {
 			e.printStackTrace(System.err);
 		}
-	}
-
-	@Override
-	public void generateOneResultSet() throws IOException, InterruptedException {
-
-		for (Long baseContactMapSeed : baseContactMapMapping.keySet()) {
-			File pre_allocate_risk_file = new File(baseDir, String.format(
-					Abstract_Runnable_ClusterModel_Transmission.FILENAME_PRE_ALLOCATE_RISK_GRP, baseContactMapSeed));
-			File riskGrpDir = baseDir;
-			if (!pre_allocate_risk_file.exists()) {		
-				
-				System.out.printf("Pre-allocate risk group file %s not found. Attempting to load from cMap folder.\n",
-						pre_allocate_risk_file.getAbsolutePath());
-				
-				// Try loading one in cMap folder
-				if (loadedProperties.getProperty(Simulation_ClusterModelTransmission.PROP_CONTACT_MAP_LOC) != null) {
-					riskGrpDir = new File(
-							loadedProperties.getProperty(Simulation_ClusterModelTransmission.PROP_CONTACT_MAP_LOC));
-					if (!riskGrpDir.exists() || !riskGrpDir.isDirectory()) {
-						riskGrpDir = baseDir;
-					}
-
-					pre_allocate_risk_file = new File(riskGrpDir,
-							String.format(Abstract_Runnable_ClusterModel_Transmission.FILENAME_PRE_ALLOCATE_RISK_GRP,
-									baseContactMapSeed));
-					
-					if (!pre_allocate_risk_file.exists()) {								
-						System.out.printf("Pre-allocate risk group file %s not found either\n",
-								pre_allocate_risk_file.getAbsolutePath());
-					}
-					
-				}
-			}
-			
-			if(pre_allocate_risk_file.exists()) {
-				System.out.printf("Pre-allocate risk group file %s found\n",
-						pre_allocate_risk_file.getAbsolutePath());
-			}
-			
-			
-		}
-		
-		System.exit(1);
-		
-		super.generateOneResultSet();
-	}
+	}	
 
 }

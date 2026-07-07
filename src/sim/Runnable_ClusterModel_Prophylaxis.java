@@ -668,4 +668,17 @@ public class Runnable_ClusterModel_Prophylaxis extends Abstract_Runnable_Cluster
 				common_parameter_val, seedInfectNum, display_only);
 	}
 
+	@Override
+	public void fillRiskCatMap(ArrayList<Number[]> prealloactedRiskGrpArr) {
+		// TODO Auto-generated method stub
+		for(Number[] ar : prealloactedRiskGrpArr) {
+			System.out.println(Arrays.deepToString(ar));
+		}
+		
+		System.exit(-1);
+		super.fillRiskCatMap(prealloactedRiskGrpArr);
+	}
+	
+	
+
 }
