@@ -204,7 +204,7 @@ public class Runnable_ClusterModel_Prophylaxis extends Abstract_Runnable_Cluster
 
 			// Risk group based PEP
 			if (!allocatePEP && prophylaxis_uptake[UPTAKE_HIV_PrEP] > 0) {
-				if (!allocatePEP && risk_cat_map.get(pid).intValue() == 0 || risk_cat_map.get(pid).intValue() == 1) {
+				if (!allocatePEP &&  risk_cat_map.containsKey(pid)  && ( risk_cat_map.get(pid).intValue() == 0 || risk_cat_map.get(pid).intValue() == 1)) {
 					pAlloc = individual_uptake_rate_adj * prophylaxis_uptake[UPTAKE_HIV_PrEP];
 					offeredPEP |= true;
 					allocatePEP |= pAlloc >= 1 || rng_PEP.nextFloat() < pAlloc;
