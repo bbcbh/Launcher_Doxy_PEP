@@ -187,11 +187,14 @@ public class Runnable_ClusterModel_Prophylaxis extends Abstract_Runnable_Cluster
 	}
 
 	@Override
-	public void testPerson(int currentTime, int pid, int infIncl, int siteIncl, int[][] cumul_treatment_by_person) {
-		super.testPerson(currentTime, pid, infIncl, siteIncl, cumul_treatment_by_person);
+	public void testPerson(int currentTime, int pid_test, int infIncl, int siteIncl, int[][] cumul_treatment_by_person) {		
+		// pid < 0 if test based on symptoms
+		super.testPerson(currentTime, pid_test, infIncl, siteIncl, cumul_treatment_by_person);
 
 		// Doxy-PEP allocation by test
 		if (this.prophylaxis_starts_at > 0 && currentTime >= this.prophylaxis_starts_at) {
+			
+			int pid = Math.abs(pid_test);
 
 			boolean allocatePEP = false;
 			boolean offeredPEP = false;
