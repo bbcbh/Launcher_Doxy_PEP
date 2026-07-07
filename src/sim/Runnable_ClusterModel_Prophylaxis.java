@@ -1,6 +1,8 @@
 package sim;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -92,11 +94,10 @@ public class Runnable_ClusterModel_Prophylaxis extends Abstract_Runnable_Cluster
 			persistenceDist = generateGammaDistribution(rng_PEP, persistence);
 		}
 	}
-	
+
 	private int getGenderType(int pid) {
 		return getPersonGrp(pid);
 	}
-	
 
 	@Override
 	protected void simulate_non_infectious_act(int currentTime, ContactMap cMap, HashMap<String, int[]> acted_today) {
@@ -204,6 +205,65 @@ public class Runnable_ClusterModel_Prophylaxis extends Abstract_Runnable_Cluster
 
 			// Risk group based PEP
 			if (!allocatePEP && prophylaxis_uptake[UPTAKE_HIV_PrEP] > 0) {
+				// If not defined, read from pre generated risk grp map
+				if (!risk_cat_map.containsKey(pid)) {
+					File pre_allocate_risk_file = new File(baseDir, String.format(
+							Abstract_Runnable_ClusterModel_Transmission.FILENAME_PRE_ALLOCATE_RISK_GRP, cMAP_SEED));
+					if (!pre_allocate_risk_file.exists()
+							&& baseProp.containsKey(Simulation_ClusterModelTransmission.PROP_CONTACT_MAP_LOC)) {
+						// Try again at cMapFolder
+						pre_allocate_risk_file = new File(
+								new File(
+										baseProp.getProperty(Simulation_ClusterModelTransmission.PROP_CONTACT_MAP_LOC)),
+								String.format(
+										Abstract_Runnable_ClusterModel_Transmission.FILENAME_PRE_ALLOCATE_RISK_GRP,
+										cMAP_SEED));
+					}
+					if (pre_allocate_risk_file.isFile()) {
+						try {
+							int org_risk_map_size = risk_cat_map == null ? 0 : risk_cat_map.size();
+
+							System.out.printf("Loading risk grp file from %s at t = %d.\n",
+									pre_allocate_risk_file.getAbsolutePath(), currentTime);
+
+							BufferedReader reader = new BufferedReader(new FileReader(pre_allocate_risk_file));
+							String line;
+							if (risk_cat_map == null) {
+								risk_cat_map = new HashMap<>();
+							}
+							while ((line = reader.readLine()) != null) {
+								String[] lineSp = line.split(",");
+								Integer pid_predefine = Integer.valueOf(
+										lineSp[Abstract_Runnable_ClusterModel_Transmission.PRE_ALLOCATE_RISK_GRP_INDEX_PID]);
+								Integer risk_predefine = Integer.parseInt(
+										lineSp[Abstract_Runnable_ClusterModel_Transmission.PRE_ALLOCATE_RISK_GRP_INDEX_RISKGRP]);
+
+								if (!risk_cat_map.containsKey(pid_predefine)) {
+									risk_cat_map.put(pid_predefine, risk_predefine);
+								} else {
+									Integer existing_risk = risk_cat_map.get(pid_predefine);
+									if (!existing_risk.equals(risk_predefine)) {
+										System.out.printf("Warning: Predefine risk catergoies %d != "
+												+ "existing risk catergoies of %d."
+												+ "Risk catergoies not overwritten.\n");
+									}
+								}
+							}
+							reader.close();
+							System.out.printf("Changes in risk_cat_map %d -> %d.\n", org_risk_map_size,
+									risk_cat_map.size());
+
+						} catch (Exception e) {
+							e.printStackTrace(System.err);
+						}
+
+						if (!risk_cat_map.containsKey(pid)) { // Not found in pre-define risk grp either
+							System.out.printf("Risk catergoies for %d not found, use lowest risk (=3) instead.\n", pid);
+							risk_cat_map.put(pid, 3);
+						}
+					}
+				}
+
 				if (!allocatePEP && risk_cat_map.get(pid).intValue() == 0 || risk_cat_map.get(pid).intValue() == 1) {
 					pAlloc = individual_uptake_rate_adj * prophylaxis_uptake[UPTAKE_HIV_PrEP];
 					offeredPEP |= true;
@@ -352,7 +412,7 @@ public class Runnable_ClusterModel_Prophylaxis extends Abstract_Runnable_Cluster
 						ArrayList<Integer> res = map_currently_infectious.get(String.format("%d,%d", i, s));
 						if (res != null) {
 							count_pep_resist[i * NUM_SITE + s] = res.size();
-							for (Integer inf_pid : res) {															
+							for (Integer inf_pid : res) {
 								// 0 = Resist to DoxyPEP, 1 = Sensitive to DoxyPEP
 								Integer pep_efficiency_adj = prophylaxis_efficacy_adjust
 										.get(String.format("%d,%d,%d", i, inf_pid, s));
@@ -542,12 +602,12 @@ public class Runnable_ClusterModel_Prophylaxis extends Abstract_Runnable_Cluster
 			fileName = String.format(
 					filePrefix + "Infected_All_Stages_" + Simulation_ClusterModelTransmission.FILENAME_PREVALENCE_SITE,
 					cMAP_SEED, sIM_SEED);
-			
+
 			if (this.getSim_prop().containsKey(PROP_SEED_FILE_PATH)) {
 				File seedFileDir = new File((String) this.getSim_prop().get(PROP_SEED_FILE_PATH)).getParentFile();
 				fileName = String.format("%s%s%s", seedFileDir.getName(), File.separator, fileName);
 			}
-			
+
 			try {
 				PrintWriter pWri = new PrintWriter(new FileWriter(new java.io.File(baseDir, fileName)));
 				Integer[] timeArr = infected_site_stage_count.keySet().toArray(new Integer[0]);
@@ -667,18 +727,5 @@ public class Runnable_ClusterModel_Prophylaxis extends Abstract_Runnable_Cluster
 		return super.loadOptParameter(common_parameter_name.toArray(new String[common_parameter_name.size()]),
 				common_parameter_val, seedInfectNum, display_only);
 	}
-
-	@Override
-	public void fillRiskCatMap(ArrayList<Number[]> prealloactedRiskGrpArr) {
-		// TODO Auto-generated method stub
-		for(Number[] ar : prealloactedRiskGrpArr) {
-			System.out.println(Arrays.deepToString(ar));
-		}
-		
-		System.exit(-1);
-		super.fillRiskCatMap(prealloactedRiskGrpArr);
-	}
-	
-	
 
 }
