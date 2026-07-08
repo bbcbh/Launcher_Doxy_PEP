@@ -241,8 +241,8 @@ public class Runnable_ClusterModel_Prophylaxis extends Abstract_Runnable_Cluster
 						}
 					}
 					hivOrOnPreP.put(pid, hivOrPrEP);
-					System.out.printf("%d: Set pid=%d on HIV or PrEP as %s\n", currentTime, pid,
-							Boolean.toString(hivOrPrEP));
+//					System.out.printf("%d: Set pid=%d on HIV or PrEP as %s\n", currentTime, pid,
+//							Boolean.toString(hivOrPrEP));
 				}
 
 				if (!allocatePEP && hivOrOnPreP.get(pid)) {
