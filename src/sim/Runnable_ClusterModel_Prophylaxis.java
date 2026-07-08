@@ -1,8 +1,6 @@
 package sim;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -43,6 +41,7 @@ public class Runnable_ClusterModel_Prophylaxis extends Abstract_Runnable_Cluster
 	protected float[] prophylaxis_uptake;
 	protected HashMap<Integer, int[]> dx_last_12_months;
 	protected HashMap<Integer, int[][]> sexual_contact_last_12_months;
+	protected HashMap<Integer, int[]> casual_contact_last_12_months;
 
 	protected HashMap<Integer, Float> pep_uptake_individual_rate_adj;
 	protected HashMap<Integer, ArrayList<Integer>> pep_usage_record;
@@ -69,6 +68,8 @@ public class Runnable_ClusterModel_Prophylaxis extends Abstract_Runnable_Cluster
 	protected int count_PEP_USED = 0;
 	protected int count_PEP_USED_EFFECTIVE = 0;
 
+	protected HashMap<Integer, Boolean> hivOrOnPreP = new HashMap<>();
+
 	public Runnable_ClusterModel_Prophylaxis(long cMap_seed, long sim_seed, ContactMap base_cMap, Properties prop) {
 		super(cMap_seed, sim_seed, base_cMap, prop, num_inf, num_site, num_act);
 		this.prophylaxis_starts_at = Integer.parseInt(prop.getProperty(PROP_PEP_START_AT, "-1"));
@@ -79,6 +80,7 @@ public class Runnable_ClusterModel_Prophylaxis extends Abstract_Runnable_Cluster
 
 		dx_last_12_months = new HashMap<>();
 		sexual_contact_last_12_months = new HashMap<>();
+		casual_contact_last_12_months = new HashMap<>();
 		pep_uptake_individual_rate_adj = new HashMap<>();
 		pep_usage_record = new HashMap<>();
 
@@ -134,9 +136,15 @@ public class Runnable_ClusterModel_Prophylaxis extends Abstract_Runnable_Cluster
 							int recIndec = currentTime % AbstractIndividualInterface.ONE_YEAR_INT;
 							int partnerId = partners[0].equals(pid) ? partners[1] : partners[0];
 							int[][] contact_hist = sexual_contact_last_12_months.get(pid);
+							int[] casual_list = casual_contact_last_12_months.get(pid);
 							if (contact_hist == null) {
 								contact_hist = new int[AbstractIndividualInterface.ONE_YEAR_INT][];
 								sexual_contact_last_12_months.put(pid, contact_hist);
+
+								casual_list = new int[AbstractIndividualInterface.ONE_YEAR_INT];
+								Arrays.fill(casual_list, -1);
+								casual_contact_last_12_months.put(pid, casual_list);
+
 							}
 							if (contact_hist[recIndec] == null) {
 								contact_hist[recIndec] = new int[] { partnerId };
@@ -144,6 +152,10 @@ public class Runnable_ClusterModel_Prophylaxis extends Abstract_Runnable_Cluster
 								contact_hist[recIndec] = Arrays.copyOf(contact_hist[recIndec],
 										contact_hist[recIndec].length + 1);
 								contact_hist[recIndec][contact_hist[recIndec].length - 1] = partnerId;
+							}
+
+							if (casual_list[recIndec] == -1 && edge[CONTACT_MAP_EDGE_DURATION] <= 1) {
+								casual_list[recIndec] = partnerId;
 							}
 
 							for (int pId : partners) {
@@ -187,13 +199,14 @@ public class Runnable_ClusterModel_Prophylaxis extends Abstract_Runnable_Cluster
 	}
 
 	@Override
-	public void testPerson(int currentTime, int pid_test, int infIncl, int siteIncl, int[][] cumul_treatment_by_person) {		
+	public void testPerson(int currentTime, int pid_test, int infIncl, int siteIncl,
+			int[][] cumul_treatment_by_person) {
 		// pid < 0 if test based on symptoms
 		super.testPerson(currentTime, pid_test, infIncl, siteIncl, cumul_treatment_by_person);
 
 		// Doxy-PEP allocation by test
 		if (this.prophylaxis_starts_at > 0 && currentTime >= this.prophylaxis_starts_at) {
-			
+
 			int pid = Math.abs(pid_test);
 
 			boolean allocatePEP = false;
@@ -206,72 +219,38 @@ public class Runnable_ClusterModel_Prophylaxis extends Abstract_Runnable_Cluster
 				individual_uptake_rate_adj = pep_uptake_individual_rate_adj.get(pid);
 			}
 
-			// Risk group based PEP
+			// HIV PREP used based PEP
 			if (!allocatePEP && prophylaxis_uptake[UPTAKE_HIV_PrEP] > 0) {
-				// If not defined, read from pre generated risk grp map
-				if (!risk_cat_map.containsKey(pid)) {
-					File pre_allocate_risk_file = new File(baseDir, String.format(
-							Abstract_Runnable_ClusterModel_Transmission.FILENAME_PRE_ALLOCATE_RISK_GRP, cMAP_SEED));
-					if (!pre_allocate_risk_file.exists()
-							&& baseProp.containsKey(Simulation_ClusterModelTransmission.PROP_CONTACT_MAP_LOC)) {
-						// Try again at cMapFolder
-						pre_allocate_risk_file = new File(
-								new File(
-										baseProp.getProperty(Simulation_ClusterModelTransmission.PROP_CONTACT_MAP_LOC)),
-								String.format(
-										Abstract_Runnable_ClusterModel_Transmission.FILENAME_PRE_ALLOCATE_RISK_GRP,
-										cMAP_SEED));
-					}
-					if (pre_allocate_risk_file.isFile()) {
-						try {
-							int org_risk_map_size = risk_cat_map == null ? 0 : risk_cat_map.size();
 
-							System.out.printf("Loading risk grp file from %s at t = %d.\n",
-									pre_allocate_risk_file.getAbsolutePath(), currentTime);
+				// For 104000 - around 8-9% HIV+ with 53% PrEP use for those with casual partner
+				final float prob_HIV = 0.085f;
+				final float prob_prep = 0.53f;
 
-							BufferedReader reader = new BufferedReader(new FileReader(pre_allocate_risk_file));
-							String line;
-							if (risk_cat_map == null) {
-								risk_cat_map = new HashMap<>();
+				if (!hivOrOnPreP.containsKey(pid)) {
+					boolean hivOrPrEP = rng_PEP.nextFloat() < prob_HIV;
+					if (!hivOrPrEP) {
+						boolean hasCasual = false;
+						int[] casual_list_last_12_months = casual_contact_last_12_months.get(pid);
+						if (casual_list_last_12_months != null) {
+							for (int i = 0; i < casual_list_last_12_months.length && !hasCasual; i++) {
+								hasCasual |= casual_list_last_12_months[i] != -1;
 							}
-							while ((line = reader.readLine()) != null) {
-								String[] lineSp = line.split(",");
-								Integer pid_predefine = Integer.valueOf(
-										lineSp[Abstract_Runnable_ClusterModel_Transmission.PRE_ALLOCATE_RISK_GRP_INDEX_PID]);
-								Integer risk_predefine = Integer.parseInt(
-										lineSp[Abstract_Runnable_ClusterModel_Transmission.PRE_ALLOCATE_RISK_GRP_INDEX_RISKGRP]);
-
-								if (!risk_cat_map.containsKey(pid_predefine)) {
-									risk_cat_map.put(pid_predefine, risk_predefine);
-								} else {
-									Integer existing_risk = risk_cat_map.get(pid_predefine);
-									if (!existing_risk.equals(risk_predefine)) {
-										System.out.printf("Warning: Predefine risk catergoies %d != "
-												+ "existing risk catergoies of %d."
-												+ "Risk catergoies not overwritten.\n");
-									}
-								}
+							if (hasCasual) {
+								hivOrPrEP = rng_PEP.nextFloat() < prob_prep;
 							}
-							reader.close();
-							System.out.printf("Changes in risk_cat_map %d -> %d.\n", org_risk_map_size,
-									risk_cat_map.size());
-
-						} catch (Exception e) {
-							e.printStackTrace(System.err);
-						}
-
-						if (!risk_cat_map.containsKey(pid)) { // Not found in pre-define risk grp either
-							System.out.printf("Risk catergoies for %d not found, use lowest risk (=3) instead.\n", pid);
-							risk_cat_map.put(pid, 3);
 						}
 					}
+					hivOrOnPreP.put(pid, hivOrPrEP);
+					System.out.printf("%d: Set pid=%d on HIV or PrEP as %s\n", currentTime, pid,
+							Boolean.toString(hivOrPrEP));
 				}
 
-				if (!allocatePEP && risk_cat_map.get(pid).intValue() == 0 || risk_cat_map.get(pid).intValue() == 1) {
+				if (!allocatePEP && hivOrOnPreP.get(pid)) {
 					pAlloc = individual_uptake_rate_adj * prophylaxis_uptake[UPTAKE_HIV_PrEP];
 					offeredPEP |= true;
 					allocatePEP |= pAlloc >= 1 || rng_PEP.nextFloat() < pAlloc;
 				}
+
 			}
 
 			// Treatment rate based PEP
